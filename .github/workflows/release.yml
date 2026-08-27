@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Decode keystore
+        run: echo "${{ secrets.CANDID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+      - name: Build signed release APK
+        env:
+          CANDID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          CANDID_KEYSTORE_PASSWORD: ${{ secrets.CANDID_KEYSTORE_PASSWORD }}
+          CANDID_KEY_ALIAS: ${{ secrets.CANDID_KEY_ALIAS }}
+          CANDID_KEY_PASSWORD: ${{ secrets.CANDID_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f release.keystore
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
