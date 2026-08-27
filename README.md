@@ -5,6 +5,11 @@ Candid sends a notification. Open it whenever you're ready and it captures a rea
 then a front photo, pairs them as one entry, and lets you add a short caption — a private,
 offline take on the "BeReal" idea with no accounts, no networking, and no social feed.
 
+**This is an early beta.** Grab the latest APK from [Releases](../../releases) and try it
+for a while — then please [open an issue](../../issues/new) with anything that felt off,
+broke, or that you wished worked differently. Real-world feedback from LP3 owners is exactly
+what this stage is for.
+
 ## Why standalone
 
 The official Light SDK's sandboxed tool model doesn't yet expose photo capture, local
