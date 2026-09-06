@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [EntryEntity::class], version = 1, exportSchema = false)
+@Database(entities = [EntryEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun entryDao(): EntryDao
 
@@ -17,7 +17,12 @@ abstract class AppDatabase : RoomDatabase() {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "candid.db",
-            ).build().also { instance = it }
+            )
+                // v1 -> v2 made frontPhotoPath nullable (manual capture mode can skip the
+                // selfie). Still a beta with a handful of installs — destructive is simpler
+                // than a real migration for one column's nullability.
+                .fallbackToDestructiveMigration(dropAllTables = true)
+                .build().also { instance = it }
         }
     }
 }

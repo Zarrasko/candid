@@ -61,7 +61,7 @@ fun EntryDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(0.5f)),
                 ) {
                     PhotoThumbnail(File(current.rearPhotoPath), Modifier.weight(1f))
-                    PhotoThumbnail(File(current.frontPhotoPath), Modifier.weight(1f))
+                    PhotoThumbnail(current.frontPhotoPath?.let(::File), Modifier.weight(1f))
                 }
                 LightText(
                     "Caption",

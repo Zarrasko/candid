@@ -1,8 +1,12 @@
 package app.candid
 
 import android.content.Context
+import app.candid.capture.CaptureSettings
+import app.candid.capture.SharedPrefsCaptureSettings
 import app.candid.notifications.AlarmReminderScheduler
 import app.candid.notifications.ReminderScheduler
+import app.candid.notifications.ReminderStyleSettings
+import app.candid.notifications.SharedPrefsReminderStyleSettings
 import app.candid.storage.EntryRepository
 import app.candid.storage.FilesDirPhotoStore
 import app.candid.storage.PhotoFileStore
@@ -14,4 +18,6 @@ class AppContainer(context: Context) {
     val entryRepository: EntryRepository = RoomEntryRepository(AppDatabase.get(context).entryDao())
     val photoFileStore: PhotoFileStore = FilesDirPhotoStore(context)
     val reminderScheduler: ReminderScheduler = AlarmReminderScheduler(context)
+    val reminderStyleSettings: ReminderStyleSettings = SharedPrefsReminderStyleSettings(context)
+    val captureSettings: CaptureSettings = SharedPrefsCaptureSettings(context)
 }

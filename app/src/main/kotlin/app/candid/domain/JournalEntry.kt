@@ -7,7 +7,8 @@ import java.time.LocalDate
 data class JournalEntry(
     val date: LocalDate,
     val rearPhotoPath: String,
-    val frontPhotoPath: String,
+    // Null when captured in manual mode and the user skipped the front (selfie) shot.
+    val frontPhotoPath: String?,
     val caption: String,
     val capturedAtEpochMillis: Long,
 )

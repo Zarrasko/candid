@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -28,8 +29,12 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         val now = LocalDateTime.now()
         val startHour = prefs.getInt(KEY_WINDOW_START_HOUR, DEFAULT_WINDOW_START_HOUR)
         val endHour = prefs.getInt(KEY_WINDOW_END_HOUR, DEFAULT_WINDOW_END_HOUR)
+        val activeDays = getActiveDays()
 
-        val targetDate = if (now.hour < startHour) LocalDate.now() else LocalDate.now().plusDays(1)
+        var targetDate = if (now.hour < startHour) LocalDate.now() else LocalDate.now().plusDays(1)
+        while (targetDate.dayOfWeek !in activeDays) {
+            targetDate = targetDate.plusDays(1)
+        }
         val windowStart = targetDate.atTime(startHour, 0)
         val windowEnd = targetDate.atTime(endHour, 0)
 
@@ -84,6 +89,19 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         scheduleNext()
     }
 
+    override fun getActiveDays(): Set<DayOfWeek> {
+        val stored = prefs.getStringSet(KEY_ACTIVE_DAYS, null)
+        if (stored.isNullOrEmpty()) return DayOfWeek.entries.toSet()
+        val parsed = stored.mapNotNull { runCatching { DayOfWeek.valueOf(it) }.getOrNull() }.toSet()
+        return parsed.ifEmpty { DayOfWeek.entries.toSet() }
+    }
+
+    override fun setActiveDays(days: Set<DayOfWeek>) {
+        val safeDays = days.ifEmpty { DayOfWeek.entries.toSet() }
+        prefs.edit().putStringSet(KEY_ACTIVE_DAYS, safeDays.map { it.name }.toSet()).apply()
+        scheduleNext()
+    }
+
     override fun hasExactAlarmPermission(): Boolean = alarmManager.canScheduleExactAlarms()
 
     companion object {
@@ -91,6 +109,7 @@ class AlarmReminderScheduler(private val context: Context) : ReminderScheduler {
         private const val KEY_NEXT_TRIGGER_MILLIS = "next_trigger_millis"
         private const val KEY_WINDOW_START_HOUR = "window_start_hour"
         private const val KEY_WINDOW_END_HOUR = "window_end_hour"
+        private const val KEY_ACTIVE_DAYS = "active_days"
         private const val DEFAULT_WINDOW_START_HOUR = 9
         private const val DEFAULT_WINDOW_END_HOUR = 21
     }

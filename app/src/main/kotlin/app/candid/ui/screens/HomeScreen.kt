@@ -117,7 +117,7 @@ private fun TodayEntryPreview(entry: JournalEntry, onRetake: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(0.5f)),
         ) {
             PhotoThumbnail(File(entry.rearPhotoPath), Modifier.weight(1f))
-            PhotoThumbnail(File(entry.frontPhotoPath), Modifier.weight(1f))
+            PhotoThumbnail(entry.frontPhotoPath?.let(::File), Modifier.weight(1f))
         }
         if (entry.caption.isNotBlank()) {
             LightText(
@@ -129,9 +129,10 @@ private fun TodayEntryPreview(entry: JournalEntry, onRetake: () -> Unit) {
     }
 }
 
+/** file is null when this slot was skipped (manual capture mode, no selfie taken). */
 @Composable
-fun PhotoThumbnail(file: File, modifier: Modifier = Modifier) {
-    val bitmap = rememberSampledBitmap(file, reqSize = 512)
+fun PhotoThumbnail(file: File?, modifier: Modifier = Modifier) {
+    val bitmap = file?.let { rememberSampledBitmap(it, reqSize = 512) }
     Box(
         modifier = modifier.aspectRatio(1f).hairlineBorder(CandidTheme.colors.content),
         contentAlignment = Alignment.Center,
@@ -143,6 +144,8 @@ fun PhotoThumbnail(file: File, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
+        } else if (file == null) {
+            LightText("Skipped", variant = LightTextVariant.Superfine, secondary = true)
         }
     }
 }

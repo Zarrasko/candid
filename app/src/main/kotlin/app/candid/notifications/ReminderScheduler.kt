@@ -1,5 +1,7 @@
 package app.candid.notifications
 
+import java.time.DayOfWeek
+
 /** Isolates alarm/notification scheduling behind an interface — the only place a future
  * SDK-provided local-notification primitive would need to be swapped in. */
 interface ReminderScheduler {
@@ -20,6 +22,14 @@ interface ReminderScheduler {
 
     /** Persists a new window and immediately re-arms the next alarm within it. */
     fun setWindow(startHour: Int, endHour: Int)
+
+    /** Days reminders are allowed to fire on. Defaults to all seven. */
+    fun getActiveDays(): Set<DayOfWeek>
+
+    /** Persists a new set of active days and immediately re-arms the next alarm to land
+     * on one of them. An empty set is treated as "all days" rather than silently going
+     * quiet forever. */
+    fun setActiveDays(days: Set<DayOfWeek>)
 
     /** Whether the OS will honor exact-time scheduling for this app right now. */
     fun hasExactAlarmPermission(): Boolean

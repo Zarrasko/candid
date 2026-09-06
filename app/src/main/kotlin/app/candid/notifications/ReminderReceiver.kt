@@ -24,7 +24,18 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 val alreadyCaptured = container.entryRepository.findByDate(LocalDate.now()) != null
                 if (!alreadyCaptured) {
-                    postNotification(context)
+                    val style = container.reminderStyleSettings.getStyle()
+                    if (style == ReminderStyle.OVERLAY && ReminderOverlay.canShow(context)) {
+                        ReminderOverlay.show(
+                            context = context,
+                            title = "Today's photo",
+                            text = "Take a moment to capture where you are today.",
+                        )
+                    } else {
+                        // Overlay style with the permission not (yet) granted falls back to a
+                        // plain notification rather than silently dropping the reminder.
+                        postNotification(context)
+                    }
                 }
                 container.reminderScheduler.scheduleNext()
             } finally {

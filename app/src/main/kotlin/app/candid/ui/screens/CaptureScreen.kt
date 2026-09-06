@@ -28,6 +28,7 @@ import app.candid.capture.CameraController
 import app.candid.capture.CameraLens
 import app.candid.capture.CameraPreview
 import app.candid.capture.CameraXController
+import app.candid.capture.CaptureSettings
 import app.candid.capture.CaptureState
 import app.candid.capture.HardwareCaptureButton
 import app.candid.domain.JournalEntry
@@ -55,6 +56,7 @@ private const val FRONT_LENS_WARMUP_MILLIS = 600L
 fun CaptureScreen(
     photoFileStore: PhotoFileStore,
     entryRepository: EntryRepository,
+    captureSettings: CaptureSettings,
     onDone: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -79,6 +81,7 @@ fun CaptureScreen(
     val cameraController: CameraController = remember { CameraXController(context) }
     var state by remember { mutableStateOf<CaptureState>(CaptureState.RearPreview) }
     var isCapturing by remember { mutableStateOf(false) }
+    val autoDualCapture = remember { captureSettings.isAutoDualCaptureEnabled() }
     val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
@@ -108,15 +111,18 @@ fun CaptureScreen(
         isCapturing = false
     }
 
-    // Rear capture is user-triggered (the deliberate "I'm ready" moment); the front shot
-    // then fires automatically once the lens has had time to switch, so one tap covers both.
+    // Rear capture is user-triggered (the deliberate "I'm ready" moment). In auto mode the
+    // front shot then fires automatically once the lens has had time to switch, so one tap
+    // covers both; in manual mode the front viewfinder just waits for a tap or a skip.
     LaunchedEffect(state) {
         when (state) {
             CaptureState.RearPreview -> cameraController.setLens(CameraLens.REAR)
             CaptureState.FrontPreview -> {
                 cameraController.setLens(CameraLens.FRONT)
-                delay(FRONT_LENS_WARMUP_MILLIS)
-                performCapture(isRear = false)
+                if (autoDualCapture) {
+                    delay(FRONT_LENS_WARMUP_MILLIS)
+                    performCapture(isRear = false)
+                }
             }
             else -> Unit
         }
@@ -128,6 +134,16 @@ fun CaptureScreen(
             PreviewContent(
                 cameraController = cameraController,
                 onCapture = { scope.launch { performCapture(isRear) } },
+                onSkip = if (!isRear && !autoDualCapture) {
+                    {
+                        state = CaptureState.Confirm(
+                            rearFile = photoFileStore.fileFor(LocalDate.now(), PhotoSlot.REAR),
+                            frontFile = null,
+                        )
+                    }
+                } else {
+                    null
+                },
                 onCancel = onCancel,
             )
         }
@@ -148,7 +164,7 @@ fun CaptureScreen(
                             JournalEntry(
                                 date = LocalDate.now(),
                                 rearPhotoPath = current.rearFile.absolutePath,
-                                frontPhotoPath = current.frontFile.absolutePath,
+                                frontPhotoPath = current.frontFile?.absolutePath,
                                 caption = current.caption,
                                 capturedAtEpochMillis = System.currentTimeMillis(),
                             ),
@@ -173,6 +189,7 @@ fun CaptureScreen(
 private fun PreviewContent(
     cameraController: CameraController,
     onCapture: () -> Unit,
+    onSkip: (() -> Unit)?,
     onCancel: () -> Unit,
 ) {
     DisposableEffect(onCapture) {
@@ -192,7 +209,10 @@ private fun PreviewContent(
         )
         LightBottomBar(
             modifier = Modifier.align(Alignment.BottomStart),
-            items = listOf(BarButton(label = "Capture", onClick = onCapture)),
+            items = listOfNotNull(
+                BarButton(label = "Capture", onClick = onCapture),
+                onSkip?.let { BarButton(label = "Skip", onClick = it) },
+            ),
         )
     }
 }

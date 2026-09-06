@@ -7,7 +7,8 @@ import java.io.File
 sealed class CaptureState {
     data object RearPreview : CaptureState()
     data object FrontPreview : CaptureState()
-    data class Confirm(val rearFile: File, val frontFile: File, val caption: String = "") : CaptureState()
+    // frontFile is null when manual mode was used and the front (selfie) shot was skipped.
+    data class Confirm(val rearFile: File, val frontFile: File?, val caption: String = "") : CaptureState()
     data object Saving : CaptureState()
     data class Error(val message: String) : CaptureState()
 }
