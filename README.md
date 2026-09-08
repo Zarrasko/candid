@@ -10,6 +10,27 @@ for a while — then please [open an issue](../../issues/new) with anything that
 broke, or that you wished worked differently. Real-world feedback from LP3 owners is exactly
 what this stage is for.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/home.png" width="220"><br><sub>Today's entry</sub></td>
+    <td align="center"><img src="docs/screenshots/capture-rear.png" width="220"><br><sub>Capture — rear</sub></td>
+    <td align="center"><img src="docs/screenshots/capture-front-skip.png" width="220"><br><sub>Capture — front, Manual mode</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/history.png" width="220"><br><sub>History</sub></td>
+    <td align="center"><img src="docs/screenshots/entry-detail-skip.png" width="220"><br><sub>Entry detail, front skipped</sub></td>
+    <td align="center"><img src="docs/screenshots/settings-reminders.png" width="220"><br><sub>Settings — days &amp; window</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/settings-style-capture.png" width="220"><br><sub>Settings — reminder style &amp; capture mode</sub></td>
+  </tr>
+</table>
+
+*Journal photos shown above are generated sample images standing in for real captures —
+nothing you take with Candid ever leaves your device.*
+
 ## Why standalone
 
 The official Light SDK's sandboxed tool model doesn't yet expose photo capture, local
