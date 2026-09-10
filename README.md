@@ -5,10 +5,9 @@ Candid sends a notification. Open it whenever you're ready and it captures a rea
 then a front photo, pairs them as one entry, and lets you add a short caption — a private,
 offline take on the "BeReal" idea with no accounts, no networking, and no social feed.
 
-**This is an early beta.** Grab the latest APK from [Releases](../../releases) and try it
-for a while — then please [open an issue](../../issues/new) with anything that felt off,
-broke, or that you wished worked differently. Real-world feedback from LP3 owners is exactly
-what this stage is for.
+**Version 1.0.** Grab the latest APK from [Releases](../../releases). If anything feels off,
+breaks, or works differently than you'd expect, please [open an issue](../../issues/new) —
+real-world feedback from LP3 owners is still exactly what keeps this moving forward.
 
 ## Screenshots
 
@@ -54,6 +53,10 @@ Requires JDK 17+ and the Android SDK (API 34-36 platform + build-tools).
 ```bash
 ./gradlew :app:assembleDebug
 ```
+
+A debug build installs as its own app (`app.candid.debug`, labeled "Candid Dev") — separate
+storage and database from a release install, so trying a dev build never touches a real
+journal already on the device.
 
 ## Installing
 

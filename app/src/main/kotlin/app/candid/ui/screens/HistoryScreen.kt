@@ -74,7 +74,10 @@ private fun HistoryRow(entry: JournalEntry, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(0.5f)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PhotoThumbnail(File(entry.rearPhotoPath), Modifier.size(gridUnitsAsDp(4f)))
+        Row(horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(0.25f))) {
+            PhotoThumbnail(entry.rearPhotoPath?.let(::File), Modifier.size(gridUnitsAsDp(4f)))
+            PhotoThumbnail(entry.frontPhotoPath?.let(::File), Modifier.size(gridUnitsAsDp(4f)))
+        }
         Column(Modifier.weight(1f)) {
             LightText(entry.date.format(DateTimeFormatter.ofPattern("EEE, MMM d")), variant = LightTextVariant.Detail)
             if (entry.caption.isNotBlank()) {

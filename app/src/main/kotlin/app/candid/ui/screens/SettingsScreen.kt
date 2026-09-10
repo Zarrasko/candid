@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import app.candid.capture.CaptureOrder
 import app.candid.capture.CaptureSettings
 import app.candid.notifications.ReminderOverlay
 import app.candid.notifications.ReminderScheduler
@@ -51,6 +52,7 @@ fun SettingsScreen(
     var overlayGranted by remember { mutableStateOf(ReminderOverlay.canShow(context)) }
     val requestOverlayPermission = rememberOverlayPermissionRequester { granted -> overlayGranted = granted }
     var autoDualCapture by remember { mutableStateOf(captureSettings.isAutoDualCaptureEnabled()) }
+    var captureOrder by remember { mutableStateOf(captureSettings.getCaptureOrder()) }
     val formatter = DateTimeFormatter.ofPattern("h a")
 
     Column(Modifier.fillMaxSize()) {
@@ -154,7 +156,7 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = gridUnitsAsDp(1.5f)),
             )
             LightText(
-                "Auto takes the rear and front photo with one tap. Manual lets you skip the front photo, so a selfie is never forced.",
+                "Auto takes both photos with one tap. Manual lets you skip the second one — whichever camera that is — so it's never forced.",
                 variant = LightTextVariant.Paragraph,
                 secondary = true,
                 modifier = Modifier.padding(top = gridUnitsAsDp(0.25f), bottom = gridUnitsAsDp(1f)),
@@ -162,6 +164,22 @@ fun SettingsScreen(
             CaptureModePicker(
                 autoDualCapture = autoDualCapture,
                 onChange = { autoDualCapture = it },
+            )
+
+            LightText(
+                "Camera order",
+                variant = LightTextVariant.Subheading,
+                modifier = Modifier.padding(top = gridUnitsAsDp(1.5f)),
+            )
+            LightText(
+                "Rear first captures the back camera, then the front. Front first mirrors that. Whichever fires second is the one Manual mode lets you skip.",
+                variant = LightTextVariant.Paragraph,
+                secondary = true,
+                modifier = Modifier.padding(top = gridUnitsAsDp(0.25f), bottom = gridUnitsAsDp(1f)),
+            )
+            CaptureOrderPicker(
+                order = captureOrder,
+                onChange = { captureOrder = it },
             )
         }
 
@@ -174,6 +192,7 @@ fun SettingsScreen(
                         reminderScheduler.setActiveDays(activeDays)
                         reminderStyleSettings.setStyle(reminderStyle)
                         captureSettings.setAutoDualCaptureEnabled(autoDualCapture)
+                        captureSettings.setCaptureOrder(captureOrder)
                         onBack()
                     },
                 ),
@@ -262,6 +281,32 @@ private fun CaptureModePicker(
             secondary = autoDualCapture,
             underline = !autoDualCapture,
             modifier = Modifier.lightClickable { onChange(false) },
+        )
+    }
+}
+
+@Composable
+private fun CaptureOrderPicker(
+    order: CaptureOrder,
+    onChange: (CaptureOrder) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().hairlineBorder(CandidTheme.colors.contentSecondary).padding(gridUnitsAsDp(0.5f)),
+        horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(2f)),
+    ) {
+        LightText(
+            "Rear first",
+            variant = LightTextVariant.Paragraph,
+            secondary = order != CaptureOrder.REAR_FIRST,
+            underline = order == CaptureOrder.REAR_FIRST,
+            modifier = Modifier.lightClickable { onChange(CaptureOrder.REAR_FIRST) },
+        )
+        LightText(
+            "Front first",
+            variant = LightTextVariant.Paragraph,
+            secondary = order != CaptureOrder.FRONT_FIRST,
+            underline = order == CaptureOrder.FRONT_FIRST,
+            modifier = Modifier.lightClickable { onChange(CaptureOrder.FRONT_FIRST) },
         )
     }
 }

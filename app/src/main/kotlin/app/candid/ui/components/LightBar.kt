@@ -51,13 +51,17 @@ fun LightTopBar(
             .padding(horizontal = gridUnitsAsDp(1f)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
+        // Left/right get equal weight even when one is empty - otherwise an empty side lets
+        // the title's weighted center slot expand into it, and centering within that
+        // lopsided remaining space visibly shifts the title off the true screen center
+        // whenever only one of left/right is present (the common case: a lone Back button).
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             left?.let { BarButtonText(it) }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             title?.let { LightText(it, variant = LightTextVariant.Subheading, align = TextAlign.Center) }
         }
-        Box(contentAlignment = Alignment.CenterEnd) {
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
             right?.let { BarButtonText(it) }
         }
     }

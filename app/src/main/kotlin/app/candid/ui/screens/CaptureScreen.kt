@@ -29,6 +29,7 @@ import app.candid.capture.CameraController
 import app.candid.capture.CameraLens
 import app.candid.capture.CameraPreview
 import app.candid.capture.CameraXController
+import app.candid.capture.CaptureOrder
 import app.candid.capture.CaptureSettings
 import app.candid.capture.CaptureState
 import app.candid.capture.HardwareCaptureButton
@@ -46,16 +47,17 @@ import app.candid.ui.components.LightTextField
 import app.candid.ui.components.LightTextVariant
 import app.candid.ui.components.LightTopBar
 import app.candid.ui.components.hairlineBorder
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-// Buffer after switching lenses before auto-firing the front shot. Long enough that the lens
-// switch (CameraX closing the rear session and opening the front one) finishes and the live
-// front preview actually renders before the shutter fires — early beta feedback was that a
-// much shorter buffer fired before anyone could see themselves in frame. Paired with a visible
-// countdown so the exact fire moment is predictable rather than a surprise.
-private const val FRONT_LENS_WARMUP_MILLIS = 3000L
+// Every tap of Capture - first shot, or a manual second shot - runs this countdown before the
+// shutter actually fires, and auto-advancing into the second shot runs the same one
+// automatically. Early beta feedback was twofold: the second camera fired before its preview
+// had rendered, and the capture button itself felt unresponsive because nothing visible
+// happened between the tap and the shutter - a visible, predictable countdown fixes both.
+private const val CAPTURE_COUNTDOWN_MILLIS = 3000L
 private const val COUNTDOWN_TICK_MILLIS = 1000L
 
 @Composable
@@ -85,26 +87,32 @@ fun CaptureScreen(
     }
 
     val cameraController: CameraController = remember { CameraXController(context) }
-    var state by remember { mutableStateOf<CaptureState>(CaptureState.RearPreview) }
+    var state by remember { mutableStateOf<CaptureState>(CaptureState.FirstPreview) }
     var isCapturing by remember { mutableStateOf(false) }
     var countdownSeconds by remember { mutableStateOf<Int?>(null) }
+    var countdownJob by remember { mutableStateOf<Job?>(null) }
     val autoDualCapture = remember { captureSettings.isAutoDualCaptureEnabled() }
+    // CaptureOrder decides which physical camera is "first" vs "second" - the state machine
+    // itself never refers to rear/front, only first/second, so this is the one place that
+    // translates between them.
+    val captureOrder = remember { captureSettings.getCaptureOrder() }
+    val firstSlot = if (captureOrder == CaptureOrder.REAR_FIRST) PhotoSlot.REAR else PhotoSlot.FRONT
+    val secondSlot = if (captureOrder == CaptureOrder.REAR_FIRST) PhotoSlot.FRONT else PhotoSlot.REAR
     val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         onDispose { cameraController.unbind() }
     }
 
-    suspend fun performCapture(isRear: Boolean) {
+    suspend fun performCapture(slot: PhotoSlot, isFirst: Boolean) {
         if (isCapturing) return
         isCapturing = true
         val today = LocalDate.now()
-        val slot = if (isRear) PhotoSlot.REAR else PhotoSlot.FRONT
         val file = photoFileStore.fileFor(today, slot)
         cameraController.capture(file)
             .onSuccess {
-                state = if (isRear) {
-                    CaptureState.FrontPreview
+                state = if (isFirst) {
+                    CaptureState.SecondPreview
                 } else {
                     CaptureState.Confirm(
                         rearFile = photoFileStore.fileFor(today, PhotoSlot.REAR),
@@ -118,28 +126,39 @@ fun CaptureScreen(
         isCapturing = false
     }
 
-    // Rear capture is user-triggered (the deliberate "I'm ready" moment). In auto mode the
-    // front shot then fires automatically once the lens has had time to switch, so one tap
-    // covers both; in manual mode the front viewfinder just waits for a tap or a skip.
+    // The single entry point for firing a shot, whether triggered by a tap or by auto-advance.
+    // A tap that lands while a countdown is already running (from auto-advance, or an earlier
+    // tap) means "go now" - it cancels the wait and captures immediately rather than queuing a
+    // second countdown behind it.
+    fun startCapture(slot: PhotoSlot, isFirst: Boolean) {
+        if (isCapturing) return
+        if (countdownSeconds != null) {
+            countdownJob?.cancel()
+            countdownSeconds = null
+            scope.launch { performCapture(slot, isFirst) }
+            return
+        }
+        countdownJob = scope.launch {
+            val totalSeconds = (CAPTURE_COUNTDOWN_MILLIS / COUNTDOWN_TICK_MILLIS).toInt()
+            for (remaining in totalSeconds downTo 1) {
+                countdownSeconds = remaining
+                delay(COUNTDOWN_TICK_MILLIS)
+            }
+            countdownSeconds = null
+            performCapture(slot, isFirst)
+        }
+    }
+
     LaunchedEffect(state) {
         when (state) {
-            CaptureState.RearPreview -> {
-                cameraController.setLens(CameraLens.REAR)
+            CaptureState.FirstPreview -> {
+                cameraController.setLens(if (firstSlot == PhotoSlot.REAR) CameraLens.REAR else CameraLens.FRONT)
                 countdownSeconds = null
             }
-            CaptureState.FrontPreview -> {
-                cameraController.setLens(CameraLens.FRONT)
+            CaptureState.SecondPreview -> {
+                cameraController.setLens(if (secondSlot == PhotoSlot.REAR) CameraLens.REAR else CameraLens.FRONT)
                 if (autoDualCapture) {
-                    val totalSeconds = (FRONT_LENS_WARMUP_MILLIS / COUNTDOWN_TICK_MILLIS).toInt()
-                    for (remaining in totalSeconds downTo 1) {
-                        countdownSeconds = remaining
-                        delay(COUNTDOWN_TICK_MILLIS)
-                    }
-                    countdownSeconds = null
-                    // A manual tap on Capture during the countdown already moved on to Confirm
-                    // by the time this line would run - state changing cancels this coroutine
-                    // (it's keyed on state), so performCapture never double-fires in that case.
-                    performCapture(isRear = false)
+                    startCapture(secondSlot, isFirst = false)
                 }
             }
             else -> Unit
@@ -147,17 +166,21 @@ fun CaptureScreen(
     }
 
     when (val current = state) {
-        CaptureState.RearPreview, CaptureState.FrontPreview -> {
-            val isRear = current == CaptureState.RearPreview
+        CaptureState.FirstPreview, CaptureState.SecondPreview -> {
+            val isFirst = current == CaptureState.FirstPreview
+            val slot = if (isFirst) firstSlot else secondSlot
             PreviewContent(
                 cameraController = cameraController,
-                onCapture = { scope.launch { performCapture(isRear) } },
+                onCapture = { startCapture(slot, isFirst) },
                 countdownSeconds = countdownSeconds,
-                onSkip = if (!isRear && !autoDualCapture) {
+                onSkip = if (!isFirst && !autoDualCapture) {
                     {
+                        countdownJob?.cancel()
+                        countdownSeconds = null
+                        val firstFile = photoFileStore.fileFor(LocalDate.now(), firstSlot)
                         state = CaptureState.Confirm(
-                            rearFile = photoFileStore.fileFor(LocalDate.now(), PhotoSlot.REAR),
-                            frontFile = null,
+                            rearFile = if (firstSlot == PhotoSlot.REAR) firstFile else null,
+                            frontFile = if (firstSlot == PhotoSlot.FRONT) firstFile else null,
                         )
                     }
                 } else {
@@ -174,7 +197,7 @@ fun CaptureScreen(
                 onRetake = {
                     photoFileStore.delete(LocalDate.now(), PhotoSlot.REAR)
                     photoFileStore.delete(LocalDate.now(), PhotoSlot.FRONT)
-                    state = CaptureState.RearPreview
+                    state = CaptureState.FirstPreview
                 },
                 onSave = {
                     scope.launch {
@@ -182,7 +205,7 @@ fun CaptureScreen(
                         entryRepository.save(
                             JournalEntry(
                                 date = LocalDate.now(),
-                                rearPhotoPath = current.rearFile.absolutePath,
+                                rearPhotoPath = current.rearFile?.absolutePath,
                                 frontPhotoPath = current.frontFile?.absolutePath,
                                 caption = current.caption,
                                 capturedAtEpochMillis = System.currentTimeMillis(),
@@ -198,7 +221,7 @@ fun CaptureScreen(
 
         is CaptureState.Error -> ErrorContent(
             message = current.message,
-            onRetry = { state = CaptureState.RearPreview },
+            onRetry = { state = CaptureState.FirstPreview },
             onCancel = onCancel,
         )
     }

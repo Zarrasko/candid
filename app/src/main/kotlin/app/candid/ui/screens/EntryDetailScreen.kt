@@ -68,7 +68,7 @@ fun EntryDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(0.5f)),
                 ) {
-                    PhotoThumbnail(File(current.rearPhotoPath), Modifier.weight(1f))
+                    PhotoThumbnail(current.rearPhotoPath?.let(::File), Modifier.weight(1f))
                     PhotoThumbnail(current.frontPhotoPath?.let(::File), Modifier.weight(1f))
                 }
                 LightText(
@@ -94,11 +94,14 @@ fun EntryDetailScreen(
                         entry?.let { savedEntry ->
                             scope.launch {
                                 val exported = withContext(Dispatchers.IO) {
-                                    var ok = photoExporter.exportToPhotos(
-                                        File(savedEntry.rearPhotoPath),
-                                        savedEntry.date,
-                                        PhotoSlot.REAR,
-                                    )
+                                    var ok = true
+                                    savedEntry.rearPhotoPath?.let { rearPath ->
+                                        ok = photoExporter.exportToPhotos(
+                                            File(rearPath),
+                                            savedEntry.date,
+                                            PhotoSlot.REAR,
+                                        ) && ok
+                                    }
                                     savedEntry.frontPhotoPath?.let { frontPath ->
                                         ok = photoExporter.exportToPhotos(
                                             File(frontPath),

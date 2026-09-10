@@ -13,8 +13,8 @@ android {
         applicationId = "app.candid"
         minSdk = 34
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.1.5"
+        versionCode = 6
+        versionName = "1.0.0"
     }
 
     compileOptions {
@@ -45,6 +45,15 @@ android {
             if (System.getenv("CANDID_KEYSTORE_PATH") != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+        debug {
+            // A distinct package/app from the stable release build - a debug install lives
+            // entirely separately (own storage, own database, own notifications), so testing
+            // a dev build never touches the stable app's real journal data. Distinguishable
+            // in the app switcher/launcher by its own name too, not just its version.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            resValue("string", "app_name", "Candid Dev")
         }
     }
 

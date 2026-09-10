@@ -116,7 +116,7 @@ private fun TodayEntryPreview(entry: JournalEntry, onRetake: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(top = gridUnitsAsDp(1f)),
             horizontalArrangement = Arrangement.spacedBy(gridUnitsAsDp(0.5f)),
         ) {
-            PhotoThumbnail(File(entry.rearPhotoPath), Modifier.weight(1f))
+            PhotoThumbnail(entry.rearPhotoPath?.let(::File), Modifier.weight(1f))
             PhotoThumbnail(entry.frontPhotoPath?.let(::File), Modifier.weight(1f))
         }
         if (entry.caption.isNotBlank()) {
@@ -129,7 +129,7 @@ private fun TodayEntryPreview(entry: JournalEntry, onRetake: () -> Unit) {
     }
 }
 
-/** file is null when this slot was skipped (manual capture mode, no selfie taken). */
+/** file is null when this slot was skipped (manual capture mode, second shot not taken). */
 @Composable
 fun PhotoThumbnail(file: File?, modifier: Modifier = Modifier) {
     val bitmap = file?.let { rememberSampledBitmap(it, reqSize = 512) }

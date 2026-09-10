@@ -6,8 +6,9 @@ import java.time.LocalDate
  * most portable piece if the app is ever migrated onto a future sandboxed SDK. */
 data class JournalEntry(
     val date: LocalDate,
-    val rearPhotoPath: String,
-    // Null when captured in manual mode and the user skipped the front (selfie) shot.
+    // Either path is null when captured in manual mode and that shot was skipped - whichever
+    // camera fired second (see CaptureOrder) is the only one that's ever skippable.
+    val rearPhotoPath: String?,
     val frontPhotoPath: String?,
     val caption: String,
     val capturedAtEpochMillis: Long,
