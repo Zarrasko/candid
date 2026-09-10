@@ -167,7 +167,6 @@ fun SettingsScreen(
 
         LightBottomBar(
             items = listOf(
-                BarButton(label = "Back", onClick = onBack),
                 BarButton(
                     label = "Save",
                     onClick = {

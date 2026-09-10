@@ -87,7 +87,6 @@ fun EntryDetailScreen(
 
         LightBottomBar(
             items = listOf(
-                BarButton(label = "Back", onClick = onBack),
                 BarButton(
                     label = "Export",
                     enabled = entry != null,

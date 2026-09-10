@@ -21,7 +21,6 @@ import app.candid.domain.JournalEntry
 import app.candid.storage.EntryRepository
 import app.candid.theme.gridUnitsAsDp
 import app.candid.ui.components.BarButton
-import app.candid.ui.components.LightBottomBar
 import app.candid.ui.components.LightText
 import app.candid.ui.components.LightTextVariant
 import app.candid.ui.components.LightTopBar
@@ -61,8 +60,6 @@ fun HistoryScreen(
                 }
             }
         }
-
-        LightBottomBar(items = listOf(BarButton(label = "Back", onClick = onBack)))
     }
 }
 
