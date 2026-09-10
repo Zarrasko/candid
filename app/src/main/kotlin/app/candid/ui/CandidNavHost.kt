@@ -49,6 +49,7 @@ fun CandidNavHost(container: AppContainer, captureRequestToken: Int) {
         is Screen.EntryDetail -> EntryDetailScreen(
             date = current.date,
             entryRepository = container.entryRepository,
+            photoExporter = container.photoExporter,
             onBack = { screen = Screen.History },
         )
 

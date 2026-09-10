@@ -1,5 +1,6 @@
 package app.candid.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +15,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import app.candid.domain.JournalEntry
 import app.candid.storage.EntryRepository
+import app.candid.storage.PhotoExporter
+import app.candid.storage.PhotoSlot
 import app.candid.theme.gridUnitsAsDp
 import app.candid.ui.components.BarButton
 import app.candid.ui.components.LightBottomBar
@@ -23,7 +27,9 @@ import app.candid.ui.components.LightText
 import app.candid.ui.components.LightTextField
 import app.candid.ui.components.LightTextVariant
 import app.candid.ui.components.LightTopBar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -32,11 +38,13 @@ import java.time.format.DateTimeFormatter
 fun EntryDetailScreen(
     date: LocalDate,
     entryRepository: EntryRepository,
+    photoExporter: PhotoExporter,
     onBack: () -> Unit,
 ) {
     var entry by remember(date) { mutableStateOf<JournalEntry?>(null) }
     var caption by remember(date) { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(date) {
         entry = entryRepository.findByDate(date)
@@ -80,6 +88,36 @@ fun EntryDetailScreen(
         LightBottomBar(
             items = listOf(
                 BarButton(label = "Back", onClick = onBack),
+                BarButton(
+                    label = "Export",
+                    enabled = entry != null,
+                    onClick = {
+                        entry?.let { savedEntry ->
+                            scope.launch {
+                                val exported = withContext(Dispatchers.IO) {
+                                    var ok = photoExporter.exportToPhotos(
+                                        File(savedEntry.rearPhotoPath),
+                                        savedEntry.date,
+                                        PhotoSlot.REAR,
+                                    )
+                                    savedEntry.frontPhotoPath?.let { frontPath ->
+                                        ok = photoExporter.exportToPhotos(
+                                            File(frontPath),
+                                            savedEntry.date,
+                                            PhotoSlot.FRONT,
+                                        ) && ok
+                                    }
+                                    ok
+                                }
+                                Toast.makeText(
+                                    context,
+                                    if (exported) "Saved to Photos" else "Couldn't save to Photos",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    },
+                ),
                 BarButton(
                     label = "Save",
                     enabled = entry != null,

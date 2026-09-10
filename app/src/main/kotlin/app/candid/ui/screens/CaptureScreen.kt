@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,13 +45,18 @@ import app.candid.ui.components.LightText
 import app.candid.ui.components.LightTextField
 import app.candid.ui.components.LightTextVariant
 import app.candid.ui.components.LightTopBar
+import app.candid.ui.components.hairlineBorder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-// Buffer after switching lenses before auto-firing the front shot, so CameraX has time to
-// close the rear session and open the front one — otherwise capture can fire on a stale frame.
-private const val FRONT_LENS_WARMUP_MILLIS = 600L
+// Buffer after switching lenses before auto-firing the front shot. Long enough that the lens
+// switch (CameraX closing the rear session and opening the front one) finishes and the live
+// front preview actually renders before the shutter fires — early beta feedback was that a
+// much shorter buffer fired before anyone could see themselves in frame. Paired with a visible
+// countdown so the exact fire moment is predictable rather than a surprise.
+private const val FRONT_LENS_WARMUP_MILLIS = 3000L
+private const val COUNTDOWN_TICK_MILLIS = 1000L
 
 @Composable
 fun CaptureScreen(
@@ -81,6 +87,7 @@ fun CaptureScreen(
     val cameraController: CameraController = remember { CameraXController(context) }
     var state by remember { mutableStateOf<CaptureState>(CaptureState.RearPreview) }
     var isCapturing by remember { mutableStateOf(false) }
+    var countdownSeconds by remember { mutableStateOf<Int?>(null) }
     val autoDualCapture = remember { captureSettings.isAutoDualCaptureEnabled() }
     val scope = rememberCoroutineScope()
 
@@ -116,11 +123,22 @@ fun CaptureScreen(
     // covers both; in manual mode the front viewfinder just waits for a tap or a skip.
     LaunchedEffect(state) {
         when (state) {
-            CaptureState.RearPreview -> cameraController.setLens(CameraLens.REAR)
+            CaptureState.RearPreview -> {
+                cameraController.setLens(CameraLens.REAR)
+                countdownSeconds = null
+            }
             CaptureState.FrontPreview -> {
                 cameraController.setLens(CameraLens.FRONT)
                 if (autoDualCapture) {
-                    delay(FRONT_LENS_WARMUP_MILLIS)
+                    val totalSeconds = (FRONT_LENS_WARMUP_MILLIS / COUNTDOWN_TICK_MILLIS).toInt()
+                    for (remaining in totalSeconds downTo 1) {
+                        countdownSeconds = remaining
+                        delay(COUNTDOWN_TICK_MILLIS)
+                    }
+                    countdownSeconds = null
+                    // A manual tap on Capture during the countdown already moved on to Confirm
+                    // by the time this line would run - state changing cancels this coroutine
+                    // (it's keyed on state), so performCapture never double-fires in that case.
                     performCapture(isRear = false)
                 }
             }
@@ -134,6 +152,7 @@ fun CaptureScreen(
             PreviewContent(
                 cameraController = cameraController,
                 onCapture = { scope.launch { performCapture(isRear) } },
+                countdownSeconds = countdownSeconds,
                 onSkip = if (!isRear && !autoDualCapture) {
                     {
                         state = CaptureState.Confirm(
@@ -189,6 +208,7 @@ fun CaptureScreen(
 private fun PreviewContent(
     cameraController: CameraController,
     onCapture: () -> Unit,
+    countdownSeconds: Int?,
     onSkip: (() -> Unit)?,
     onCancel: () -> Unit,
 ) {
@@ -207,6 +227,18 @@ private fun PreviewContent(
             onClick = onCancel,
             modifier = Modifier.align(Alignment.TopStart),
         )
+        if (countdownSeconds != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .hairlineBorder(CandidTheme.colors.content)
+                    .background(CandidTheme.colors.background.copy(alpha = 0.75f))
+                    .padding(horizontal = gridUnitsAsDp(2f), vertical = gridUnitsAsDp(1f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                LightText(text = countdownSeconds.toString(), variant = LightTextVariant.Title)
+            }
+        }
         LightBottomBar(
             modifier = Modifier.align(Alignment.BottomStart),
             items = listOfNotNull(
